@@ -1,5 +1,5 @@
 import DashboardLayout from "../components/DashboardLayout";
-
+import { Link } from "react-router";
 function StudentDashboard() {
   return (
     <DashboardLayout
@@ -29,7 +29,9 @@ function StudentDashboard() {
             Feedback Received
           </p>
           <p className="mt-3 text-4xl font-bold text-violet-700">1</p>
-          <p className="mt-2 text-sm text-slate-500">Lecturer feedback available</p>
+          <p className="mt-2 text-sm text-slate-500">
+            Lecturer feedback available
+          </p>
         </article>
 
         <article className="rounded-2xl bg-white p-6 shadow-sm">
@@ -56,12 +58,12 @@ function StudentDashboard() {
             pattern and save your work as a draft.
           </p>
 
-          <button
-            type="button"
-            className="mt-6 rounded-xl bg-white px-5 py-3 font-bold text-violet-800 transition hover:bg-violet-100"
+          <Link
+            to="/student/write-pantun"
+            className="mt-6 inline-block rounded-xl bg-white px-5 py-3 font-bold text-violet-800 transition hover:bg-violet-100"
           >
             + Write Pantun
-          </button>
+          </Link>
         </article>
 
         <article className="rounded-2xl bg-white p-7 shadow-sm">

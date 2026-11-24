@@ -1,7 +1,12 @@
 import { useState, type ReactNode } from "react";
-import { Link, useNavigate } from "react-router";
+import { NavLink, useNavigate } from "react-router";
 
 type UserRole = "Student" | "Lecturer" | "Administrator";
+
+type MenuItem = {
+  label: string;
+  to?: string;
+};
 
 type DashboardLayoutProps = {
   role: UserRole;
@@ -12,14 +17,26 @@ type DashboardLayoutProps = {
   children: ReactNode;
 };
 
-const studentMenu = ["Dashboard", "Write Pantun", "My Drafts", "Submissions"];
-const lecturerMenu = [
-  "Dashboard",
-  "Activities",
-  "Review Submissions",
-  "Students",
+const studentMenu: MenuItem[] = [
+  { label: "Dashboard", to: "/student" },
+  { label: "Write Pantun", to: "/student/write-pantun" },
+  { label: "My Drafts" },
+  { label: "Submissions" },
 ];
-const adminMenu = ["Dashboard", "Users", "Audit Logs", "Backups"];
+
+const lecturerMenu: MenuItem[] = [
+  { label: "Dashboard", to: "/lecturer" },
+  { label: "Activities" },
+  { label: "Review Submissions" },
+  { label: "Students" },
+];
+
+const adminMenu: MenuItem[] = [
+  { label: "Dashboard", to: "/admin" },
+  { label: "Users" },
+  { label: "Audit Logs" },
+  { label: "Backups" },
+];
 
 function DashboardLayout({
   role,
@@ -34,7 +51,9 @@ function DashboardLayout({
 
   function handleLogout() {
     setShowLogoutConfirmation(false);
-    navigate("/");
+
+    // Later, remove the real login token/session here.
+    navigate("/", { replace: true });
   }
 
   const menuItems =
@@ -48,13 +67,11 @@ function DashboardLayout({
     <div className="min-h-screen bg-violet-50 md:flex">
       {/* Desktop sidebar */}
       <aside className="hidden w-72 shrink-0 flex-col bg-violet-950 p-6 text-white md:flex">
-        <Link to="/" className="inline-block">
-          <img
-            src="/logo.png"
-            alt="PantunLingo logo"
-            className="w-40 rounded-xl bg-white p-2"
-          />
-        </Link>
+        <img
+          src="/logo.png"
+          alt="PantunLingo logo"
+          className="w-40 rounded-xl bg-white p-2"
+        />
 
         <div className="mt-10">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300">
@@ -63,20 +80,35 @@ function DashboardLayout({
 
           <nav className="mt-4 space-y-2">
             {menuItems.map((item) => {
-              const isActive = item === activeMenu;
+              if (!item.to) {
+                return (
+                  <button
+                    key={item.label}
+                    type="button"
+                    disabled
+                    title="This page will be added later."
+                    className="w-full cursor-not-allowed rounded-xl px-4 py-3 text-left text-sm font-semibold text-violet-300/60"
+                  >
+                    {item.label}
+                    <span className="ml-2 text-xs">(Soon)</span>
+                  </button>
+                );
+              }
 
               return (
-                <button
-                  key={item}
-                  type="button"
-                  className={`w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
-                    isActive
-                      ? "bg-white text-violet-900 shadow-lg"
-                      : "text-violet-100 hover:bg-white/10"
-                  }`}
+                <NavLink
+                  key={item.label}
+                  to={item.to}
+                  className={({ isActive }) =>
+                    `block w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
+                      isActive || item.label === activeMenu
+                        ? "bg-white text-violet-900 shadow-lg"
+                        : "text-violet-100 hover:bg-white/10"
+                    }`
+                  }
                 >
-                  {item}
-                </button>
+                  {item.label}
+                </NavLink>
               );
             })}
           </nav>
@@ -98,21 +130,19 @@ function DashboardLayout({
 
       {/* Mobile header */}
       <header className="flex items-center justify-between bg-violet-950 p-4 text-white md:hidden">
-        <Link to="/">
-          <img
-            src="/logo.png"
-            alt="PantunLingo logo"
-            className="w-32 rounded-lg bg-white p-2"
-          />
-        </Link>
+        <img
+          src="/logo.png"
+          alt="PantunLingo logo"
+          className="w-32 rounded-lg bg-white p-2"
+        />
 
-<button
-  type="button"
-  onClick={() => setShowLogoutConfirmation(true)}
-  className="rounded-lg bg-white/15 px-3 py-2 text-sm font-bold"
->
-  Log out
-</button>
+        <button
+          type="button"
+          onClick={() => setShowLogoutConfirmation(true)}
+          className="rounded-lg bg-white/15 px-3 py-2 text-sm font-bold"
+        >
+          Log out
+        </button>
       </header>
 
       {/* Main page */}
