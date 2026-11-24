@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router";
 import DashboardLayout from "../components/DashboardLayout";
 
 function getLineEnding(line: string) {
@@ -15,9 +16,14 @@ function getLineEnding(line: string) {
 }
 
 function StudentPantunEditor() {
+  const [searchParams] = useSearchParams();
+  const draftId = searchParams.get("draftId");
+
   const [title, setTitle] = useState("");
   const [lines, setLines] = useState(["", "", "", ""]);
   const [message, setMessage] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [isLoadingDraft, setIsLoadingDraft] = useState(Boolean(draftId));
 
   const endings = lines.map(getLineEnding);
 
@@ -72,6 +78,49 @@ function StudentPantunEditor() {
     endings[0] === endings[2] &&
     endings[1] === endings[3];
 
+  useEffect(() => {
+    async function loadDraft() {
+      if (!draftId) {
+        return;
+      }
+
+      try {
+        setIsLoadingDraft(true);
+        setMessage("");
+
+        const response = await fetch(
+          `http://localhost:5000/api/drafts/${draftId}`,
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          setMessage(data.message || "Unable to load this draft.");
+          return;
+        }
+
+        const draft = data.draft;
+
+        // Temporary demo ownership check. Replace this with real login later.
+        if (draft.student_id !== 1) {
+          setMessage("You do not have permission to edit this draft.");
+          return;
+        }
+
+        setTitle(draft.title);
+        setLines([draft.line_1, draft.line_2, draft.line_3, draft.line_4]);
+      } catch {
+        setMessage(
+          "Unable to connect to the backend. Make sure the backend server is running on port 5000.",
+        );
+      } finally {
+        setIsLoadingDraft(false);
+      }
+    }
+
+    loadDraft();
+  }, [draftId]);
+
   function updateLine(index: number, value: string) {
     const updatedLines = [...lines];
     updatedLines[index] = value;
@@ -79,7 +128,7 @@ function StudentPantunEditor() {
     setMessage("");
   }
 
-  function handleSaveDraft() {
+  async function handleSaveDraft() {
     if (!title.trim()) {
       setMessage("Please enter a title for your pantun.");
       return;
@@ -90,9 +139,53 @@ function StudentPantunEditor() {
       return;
     }
 
-    setMessage(
-      "Draft saved successfully. Database storage will be added in the backend later.",
-    );
+    const rhymePattern = rhymeLabels.join("-");
+    const isEditing = Boolean(draftId);
+
+    try {
+      setIsSaving(true);
+      setMessage("");
+
+      const response = await fetch(
+        isEditing
+          ? `http://localhost:5000/api/drafts/${draftId}`
+          : "http://localhost:5000/api/drafts",
+        {
+          method: isEditing ? "PUT" : "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            studentId: 1,
+            title,
+            line1: lines[0],
+            line2: lines[1],
+            line3: lines[2],
+            line4: lines[3],
+            rhymePattern,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data.message || "Unable to save the draft.");
+        return;
+      }
+
+      setMessage(
+        isEditing
+          ? `Draft "${data.draft.title}" updated successfully.`
+          : `Draft "${data.draft.title}" saved successfully to the database.`,
+      );
+    } catch {
+      setMessage(
+        "Unable to connect to the backend. Make sure the backend server is running on port 5000.",
+      );
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   function handleClear() {
@@ -105,8 +198,12 @@ function StudentPantunEditor() {
     <DashboardLayout
       role="Student"
       name="Nur Aina"
-      title="Write Pantun"
-      description="Write a four-line pantun and review its basic A-B-A-B ending pattern before saving it as a draft."
+      title={draftId ? "Edit Pantun Draft" : "Write Pantun"}
+      description={
+        draftId
+          ? "Update your saved pantun draft and save the changes to the database."
+          : "Write a four-line pantun and review its basic A-B-A-B ending pattern before saving it as a draft."
+      }
       activeMenu="Write Pantun"
     >
       <div className="grid gap-6 xl:grid-cols-3">
@@ -212,9 +309,16 @@ function StudentPantunEditor() {
             <button
               type="button"
               onClick={handleSaveDraft}
-              className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white transition hover:bg-violet-800"
+              disabled={isSaving || isLoadingDraft}
+              className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Save Draft
+              {isSaving
+                ? "Saving..."
+                : isLoadingDraft
+                  ? "Loading Draft..."
+                  : draftId
+                    ? "Update Draft"
+                    : "Save Draft"}
             </button>
           </div>
         </section>

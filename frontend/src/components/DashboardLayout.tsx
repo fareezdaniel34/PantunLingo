@@ -20,7 +20,7 @@ type DashboardLayoutProps = {
 const studentMenu: MenuItem[] = [
   { label: "Dashboard", to: "/student" },
   { label: "Write Pantun", to: "/student/write-pantun" },
-  { label: "My Drafts" },
+  { label: "My Drafts", to: "/student/drafts" },
   { label: "Submissions" },
 ];
 
@@ -64,21 +64,22 @@ function DashboardLayout({
         : adminMenu;
 
   return (
-    <div className="min-h-screen bg-violet-50 md:flex">
-      {/* Desktop sidebar */}
-      <aside className="hidden w-72 shrink-0 flex-col bg-violet-950 p-6 text-white md:flex">
+    <div className="min-h-screen bg-violet-50">
+      {/* Desktop sidebar: stays fixed while main content scrolls */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-violet-950 p-6 text-white md:flex">
         <img
           src="/logo.png"
           alt="PantunLingo logo"
           className="w-40 rounded-xl bg-white p-2"
         />
 
-        <div className="mt-10">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300">
+        {/* This area takes available height and allows menu scrolling */}
+        <div className="mt-10 flex min-h-0 flex-1 flex-col">
+          <p className="shrink-0 text-xs font-bold uppercase tracking-[0.2em] text-violet-300">
             {role} Portal
           </p>
 
-          <nav className="mt-4 space-y-2">
+          <nav className="mt-4 flex-1 space-y-2 overflow-y-auto pr-1">
             {menuItems.map((item) => {
               if (!item.to) {
                 return (
@@ -99,11 +100,12 @@ function DashboardLayout({
                 <NavLink
                   key={item.label}
                   to={item.to}
+                  end={item.to === "/student" || item.to === "/lecturer" || item.to === "/admin"}
                   className={({ isActive }) =>
                     `block w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
                       isActive || item.label === activeMenu
-                        ? "bg-white text-violet-900 shadow-lg"
-                        : "text-violet-100 hover:bg-white/10"
+                        ? "bg-violet-600 text-white shadow-lg shadow-violet-950/30"
+                        : "text-violet-100 hover:bg-white/10 hover:text-white"
                     }`
                   }
                 >
@@ -114,7 +116,8 @@ function DashboardLayout({
           </nav>
         </div>
 
-        <div className="mt-auto rounded-2xl border border-white/15 bg-white/10 p-4">
+        {/* Always stays at the bottom of the fixed sidebar */}
+        <div className="mt-6 shrink-0 rounded-2xl border border-white/15 bg-white/10 p-4">
           <p className="font-semibold">{name}</p>
           <p className="mt-1 text-sm text-violet-200">{role}</p>
 
@@ -145,8 +148,8 @@ function DashboardLayout({
         </button>
       </header>
 
-      {/* Main page */}
-      <main className="min-w-0 flex-1 p-6 md:p-10">
+      {/* md:ml-72 leaves space for the fixed desktop sidebar */}
+      <main className="min-w-0 p-6 md:ml-72 md:p-10">
         <header className="flex flex-col gap-4 border-b border-violet-100 pb-7 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="text-sm font-bold uppercase tracking-[0.2em] text-violet-700">

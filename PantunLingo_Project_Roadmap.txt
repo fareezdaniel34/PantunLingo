@@ -1,0 +1,334 @@
+PANTUNLINGO PROJECT ROADMAP
+===========================
+Last updated: 24 November 2026
+
+PROJECT GOAL
+------------
+PantunLingo is a web-based learning system for creating, saving, reviewing, and managing Malay pantun. The system has three planned user roles:
+- Student
+- Lecturer
+- Administrator
+
+
+1. COMPLETED
+============
+
+A. FRONTEND FOUNDATION
+----------------------
+[x] React/Vite frontend project created.
+[x] PantunLingo logo added.
+[x] Student dashboard interface created.
+[x] Student Write Pantun page created.
+[x] Student My Drafts page created.
+[x] Reusable DashboardLayout component created.
+[x] Student, Lecturer, and Administrator sidebar menu structures prepared.
+[x] Logout confirmation popup added.
+[x] Responsive mobile header added.
+[x] Desktop sidebar made fixed while the main page scrolls.
+[x] Logout card stays at the bottom of the desktop sidebar.
+[x] Active sidebar page is highlighted in violet.
+
+B. PANTUN WRITING FEATURES
+--------------------------
+[x] Student can enter a pantun title.
+[x] Student can enter four pantun lines.
+[x] Basic rhyme pattern is shown and saved with the draft.
+[x] Form validation prevents saving when the title or any pantun line is empty.
+[x] Save button has a Saving state to prevent repeated clicks.
+
+C. BACKEND FOUNDATION
+---------------------
+[x] Separate Node.js/Express backend created outside the frontend folder.
+[x] CORS enabled so the React frontend can communicate with the backend.
+[x] SQLite database connected using better-sqlite3.
+[x] Database file is created automatically at:
+    backend/database/pantunlingo.db
+[x] users table created.
+[x] pantun_drafts table created.
+[x] Demo student account created for development:
+    student@pantunlingo.com
+[x] Backend health-check API created:
+    GET /api/health
+
+D. DRAFT MANAGEMENT (CRUD)
+--------------------------
+[x] Create Draft:
+    POST /api/drafts
+[x] View Student Drafts:
+    GET /api/drafts/student/:studentId
+[x] View One Draft:
+    GET /api/drafts/:draftId
+[x] Update Existing Draft:
+    PUT /api/drafts/:draftId
+[x] Delete Draft:
+    DELETE /api/drafts/:draftId
+[x] My Drafts page loads saved data from SQLite.
+[x] Continue Editing loads a selected draft into the editor.
+[x] Updating a draft changes the existing database record instead of adding a new one.
+[x] Delete Draft confirmation popup added.
+[x] Deleted drafts disappear from the screen and database.
+
+E. GITHUB SAFETY
+----------------
+[x] .gitignore created.
+[x] node_modules folders are ignored.
+[x] SQLite database files are ignored.
+[x] .env files are ignored.
+[x] Backend source code and package files can be pushed safely.
+
+
+2. CURRENT DEVELOPMENT STATUS
+=============================
+
+The Student Draft Management module is working.
+
+Current working flow:
+1. Student opens Write Pantun.
+2. Student writes a title and four pantun lines.
+3. Student saves the pantun as a draft.
+4. Draft is stored in the SQLite database.
+5. Student opens My Drafts.
+6. Student can see saved drafts.
+7. Student can continue editing a draft.
+8. Student can update the same draft.
+9. Student can delete a draft after confirmation.
+
+Important current limitation:
+- The system currently uses a temporary development student ID: studentId = 1.
+- There is no real registration, login, password security, or user session yet.
+
+
+3. NEXT PRIORITY: STUDENT SUBMISSION MODULE
+============================================
+
+Goal: Allow students to submit completed pantun drafts for lecturer review.
+
+[ ] Add a Submit Draft / Submit Pantun button.
+[ ] Only allow submission when title and all four lines are complete.
+[ ] Change draft status from "draft" to "submitted".
+[ ] Store submission date and time in the database.
+[ ] Prevent editing after submission, or provide a Withdraw Submission option if required.
+[ ] Create Student Submissions page.
+[ ] Display submission status, for example:
+    - Draft
+    - Submitted
+    - Under Review
+    - Reviewed
+    - Needs Revision
+[ ] Add a confirmation popup before final submission.
+
+Suggested database fields to add later:
+- submitted_at
+- reviewed_at
+- feedback
+- score
+
+
+4. NEXT PRIORITY: LECTURER MODULE
+=================================
+
+Goal: Allow lecturers to review student pantun submissions.
+
+[ ] Create Lecturer Dashboard page.
+[ ] Show summary cards:
+    - Total students
+    - Total submissions
+    - Pending reviews
+    - Reviewed submissions
+[ ] Create Review Submissions page.
+[ ] Fetch submitted pantun from the database.
+[ ] Show student name, title, four pantun lines, rhyme pattern, and submission date.
+[ ] Add lecturer feedback input.
+[ ] Add score or assessment result if required by the project.
+[ ] Add buttons such as:
+    - Mark as Reviewed
+    - Request Revision
+    - Save Feedback
+[ ] Update submission status after lecturer action.
+
+
+5. NEXT PRIORITY: REAL AUTHENTICATION
+=====================================
+
+Goal: Replace the temporary studentId = 1 with secure real users.
+
+[ ] Create Register page.
+[ ] Create Login page.
+[ ] Add password field to the users table.
+[ ] Hash passwords securely before storing them.
+[ ] Add role-based login for Student, Lecturer, and Administrator.
+[ ] Use a secure authentication method, such as JWT or server sessions.
+[ ] Store logged-in user information safely.
+[ ] Automatically use the logged-in user's ID when saving drafts.
+[ ] Prevent users from viewing, editing, or deleting another user's drafts.
+[ ] Update logout to clear the real login session/token.
+
+Important security rule:
+- Never store plain text passwords in the database.
+
+
+6. ADMINISTRATOR MODULE
+=======================
+
+Goal: Allow an administrator to manage accounts and system records.
+
+[ ] Create Administrator Dashboard page.
+[ ] Create Users Management page.
+[ ] View all students, lecturers, and administrators.
+[ ] Add user accounts.
+[ ] Edit user roles.
+[ ] Deactivate or delete accounts if required.
+[ ] Create Audit Logs page.
+[ ] Record important actions, for example:
+    - User login
+    - Draft deletion
+    - Submission
+    - Lecturer review
+[ ] Create Backups page or database backup process.
+
+
+7. PANTUN INTELLIGENCE AND LEARNING FEATURES
+=============================================
+
+Goal: Improve the educational value of PantunLingo.
+
+[ ] Improve rhyme detection beyond basic ending labels.
+[ ] Check the common A-B-A-B pantun rhyme structure.
+[ ] Give a gentle warning when rhyme structure does not match.
+[ ] Add syllable estimation per line.
+[ ] Add guidance for the usual pantun structure:
+    - Four lines
+    - Pembayang on lines 1 and 2
+    - Maksud on lines 3 and 4
+[ ] Add examples of good pantun.
+[ ] Add learning activities or exercises for students.
+[ ] Add teacher-created activities if required.
+[ ] Add feedback suggestions while writing.
+
+Note:
+These checks should be presented as learning assistance, not as a perfect automatic judgement of Malay poetry.
+
+
+8. DATABASE IMPROVEMENTS
+========================
+
+[ ] Add a submissions table, or extend pantun_drafts carefully.
+[ ] Add a lecturer feedback table if multiple feedback records are needed.
+[ ] Add activity table for lecturer-created tasks.
+[ ] Add audit_logs table.
+[ ] Add proper foreign-key enforcement in SQLite.
+[ ] Add database migration/version process.
+[ ] Add data backup and restore method.
+[ ] Add seed/demo data for project demonstration.
+
+Possible future tables:
+- users
+- pantun_drafts
+- submissions
+- feedback
+- activities
+- activity_submissions
+- audit_logs
+
+
+9. QUALITY, TESTING, AND RESPONSIVENESS
+========================================
+
+[ ] Test frontend on phone, tablet, laptop, and desktop screen widths.
+[ ] Improve mobile sidebar/navigation experience.
+[ ] Test empty states, loading states, and backend error messages.
+[ ] Test saving, editing, deleting, and submitting many drafts.
+[ ] Test backend validation using invalid API requests.
+[ ] Test that one student cannot access another student's data after authentication is implemented.
+[ ] Test database persistence after restarting the backend.
+[ ] Add user-friendly 404 page for invalid routes.
+[ ] Add form accessibility improvements, labels, keyboard navigation, and focus states.
+
+
+10. DEPLOYMENT AND FINAL PROJECT PREPARATION
+============================================
+
+[ ] Move configuration values into environment variables.
+[ ] Use a frontend environment variable for the backend API URL.
+[ ] Prepare production backend configuration.
+[ ] Choose a hosting/deployment method.
+[ ] Ensure the production database is persistent and backed up.
+[ ] Prepare screenshots for documentation.
+[ ] Prepare system architecture diagram.
+[ ] Prepare database ERD.
+[ ] Prepare use case diagram.
+[ ] Prepare test cases and test results.
+[ ] Prepare user manual.
+[ ] Prepare presentation/demo flow.
+[ ] Review GitHub repository before final submission.
+[ ] Ensure .env files, database files, passwords, and private keys are not pushed to GitHub.
+
+
+11. RECOMMENDED BUILD ORDER
+==========================
+
+Phase 1: Complete Student Work Flow
+[ ] Submit pantun
+[ ] Student Submissions page
+[ ] Submission status display
+
+Phase 2: Lecturer Work Flow
+[ ] Lecturer dashboard
+[ ] Review submissions page
+[ ] Feedback and status updates
+
+Phase 3: Authentication
+[ ] Register/login
+[ ] Role-based access
+[ ] Real logged-in user ID
+
+Phase 4: Administrator Features
+[ ] User management
+[ ] Audit logs
+[ ] Backups
+
+Phase 5: Smart Learning Features
+[ ] Better rhyme guidance
+[ ] Syllable guidance
+[ ] Pantun learning activities
+
+Phase 6: Testing and Finalisation
+[ ] Full testing
+[ ] Documentation
+[ ] Deployment/demo preparation
+
+
+12. IMPORTANT FILES
+==================
+
+Frontend layout:
+- frontend/src/components/DashboardLayout.tsx
+
+Student pantun editor:
+- frontend/src/pages/StudentPantunEditor.tsx
+
+Student drafts page:
+- frontend/src/pages/StudentDrafts.tsx
+
+Backend server:
+- backend/server.js
+
+SQLite database (do not push to GitHub):
+- backend/database/pantunlingo.db
+
+Git safety file:
+- .gitignore
+
+
+13. CURRENT API ROUTES
+======================
+
+GET    /api/health
+POST   /api/drafts
+GET    /api/drafts/student/:studentId
+GET    /api/drafts/:draftId
+PUT    /api/drafts/:draftId
+DELETE /api/drafts/:draftId
+
+
+END OF ROADMAP
