@@ -59,6 +59,11 @@ function addColumnIfMissing(table, column, definition) {
 
   if (!columns.includes(column)) {
     db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+    // users.is_active: 1 = active, 0 = deactivated
+const userColumns = db.prepare("PRAGMA table_info(users)").all();
+if (!userColumns.some((column) => column.name === "is_active")) {
+  db.exec("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1");
+}
   }
 }
 
@@ -184,7 +189,12 @@ app.post("/api/auth/login", (request, response) => {
       message: "Incorrect email or password.",
     });
   }
-
+  if (user.is_active === 0) {
+    return response.status(403).json({
+      success: false,
+      message: "This account has been deactivated. Please contact the administrator.",
+    });
+  }
   const token = jwt.sign({ sub: String(user.id), role: user.role }, JWT_SECRET, {
     expiresIn: "8h",
   });
@@ -556,6 +566,190 @@ app.get("/api/lecturer/stats", requireAuth("lecturer"), (request, response) => {
       averageScore: counts.averageScore,
     },
     awaitingList,
+  });
+});
+// ---------- Migration: users.is_active ----------
+// 1 = active, 0 = deactivated
+const userColumns = db.prepare("PRAGMA table_info(users)").all();
+if (!userColumns.some((column) => column.name === "is_active")) {
+  db.exec("ALTER TABLE users ADD COLUMN is_active INTEGER NOT NULL DEFAULT 1");
+  console.log("Added column users.is_active");
+}
+// ---------- Admin: user management ----------
+const ROLES = ["student", "lecturer", "admin"];
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+function adminUserRow(userId) {
+  return db
+    .prepare(`
+      SELECT u.id, u.full_name, u.email, u.role, u.is_active,
+             (SELECT COUNT(*) FROM pantun_drafts p WHERE p.student_id = u.id) AS pantun_count
+      FROM users u
+      WHERE u.id = ?
+    `)
+    .get(userId);
+}
+
+function readUserId(request, response) {
+  const userId = Number(request.params.userId);
+  if (!Number.isInteger(userId) || userId <= 0) {
+    response.status(400).json({ success: false, message: "Invalid user ID." });
+    return null;
+  }
+  return userId;
+}
+
+app.get("/api/admin/stats", requireAuth("admin"), (request, response) => {
+  const users = db
+    .prepare(`
+      SELECT
+        SUM(CASE WHEN role = 'student' THEN 1 ELSE 0 END) AS students,
+        SUM(CASE WHEN role = 'lecturer' THEN 1 ELSE 0 END) AS lecturers,
+        SUM(CASE WHEN role = 'admin' THEN 1 ELSE 0 END) AS admins,
+        SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) AS inactive
+      FROM users
+    `)
+    .get();
+
+  const pantun = db
+    .prepare(`
+      SELECT
+        COUNT(*) AS total,
+        SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) AS awaiting,
+        SUM(CASE WHEN status = 'reviewed' THEN 1 ELSE 0 END) AS reviewed
+      FROM pantun_drafts
+    `)
+    .get();
+
+  response.json({
+    success: true,
+    stats: {
+      students: users.students ?? 0,
+      lecturers: users.lecturers ?? 0,
+      admins: users.admins ?? 0,
+      inactive: users.inactive ?? 0,
+      pantun: pantun.total ?? 0,
+      awaiting: pantun.awaiting ?? 0,
+      reviewed: pantun.reviewed ?? 0,
+    },
+  });
+});
+
+app.get("/api/admin/users", requireAuth("admin"), (request, response) => {
+  const users = db
+    .prepare(`
+      SELECT u.id, u.full_name, u.email, u.role, u.is_active,
+             (SELECT COUNT(*) FROM pantun_drafts p WHERE p.student_id = u.id) AS pantun_count
+      FROM users u
+      ORDER BY u.role, u.full_name
+    `)
+    .all();
+
+  response.json({ success: true, users });
+});
+
+app.post("/api/admin/users", requireAuth("admin"), (request, response) => {
+  const fullName = String(request.body.fullName ?? "").trim();
+  const email = String(request.body.email ?? "").trim().toLowerCase();
+  const role = String(request.body.role ?? "");
+  const password = String(request.body.password ?? "");
+
+  if (!fullName || !email || !password) {
+    return response.status(400).json({ success: false, message: "Name, email and password are required." });
+  }
+  if (!EMAIL_PATTERN.test(email)) {
+    return response.status(400).json({ success: false, message: "Please enter a valid email." });
+  }
+  if (!ROLES.includes(role)) {
+    return response.status(400).json({ success: false, message: "Invalid role." });
+  }
+  if (password.length < 8) {
+    return response.status(400).json({ success: false, message: "Password must be at least 8 characters." });
+  }
+
+  const existing = db.prepare("SELECT id FROM users WHERE email = ?").get(email);
+  if (existing) {
+    return response.status(409).json({ success: false, message: "This email is already registered." });
+  }
+
+  const passwordHash = bcrypt.hashSync(password, 10);
+  const result = db
+    .prepare("INSERT INTO users (full_name, email, role, password_hash, is_active) VALUES (?, ?, ?, ?, 1)")
+    .run(fullName, email, role, passwordHash);
+
+  response.status(201).json({
+    success: true,
+    message: `Account for ${fullName} created.`,
+    user: adminUserRow(result.lastInsertRowid),
+  });
+});
+
+app.put("/api/admin/users/:userId", requireAuth("admin"), (request, response) => {
+  const userId = readUserId(request, response);
+  if (userId === null) return;
+
+  const target = adminUserRow(userId);
+  if (!target) {
+    return response.status(404).json({ success: false, message: "User not found." });
+  }
+
+  const fullName = String(request.body.fullName ?? "").trim();
+  const role = String(request.body.role ?? "");
+
+  if (!fullName) {
+    return response.status(400).json({ success: false, message: "Name is required." });
+  }
+  if (!ROLES.includes(role)) {
+    return response.status(400).json({ success: false, message: "Invalid role." });
+  }
+  if (userId === Number(request.user.id) && role !== "admin") {
+    return response.status(400).json({ success: false, message: "You cannot remove your own admin role." });
+  }
+
+  db.prepare("UPDATE users SET full_name = ?, role = ? WHERE id = ?").run(fullName, role, userId);
+
+  response.json({ success: true, message: "User updated.", user: adminUserRow(userId) });
+});
+
+app.patch("/api/admin/users/:userId/password", requireAuth("admin"), (request, response) => {
+  const userId = readUserId(request, response);
+  if (userId === null) return;
+
+  const password = String(request.body.password ?? "");
+  if (password.length < 8) {
+    return response.status(400).json({ success: false, message: "Password must be at least 8 characters." });
+  }
+
+  const result = db
+    .prepare("UPDATE users SET password_hash = ? WHERE id = ?")
+    .run(bcrypt.hashSync(password, 10), userId);
+
+  if (result.changes === 0) {
+    return response.status(404).json({ success: false, message: "User not found." });
+  }
+
+  response.json({ success: true, message: "Password has been reset." });
+});
+
+app.patch("/api/admin/users/:userId/status", requireAuth("admin"), (request, response) => {
+  const userId = readUserId(request, response);
+  if (userId === null) return;
+
+  const isActive = request.body.isActive ? 1 : 0;
+
+  if (userId === Number(request.user.id) && isActive === 0) {
+    return response.status(400).json({ success: false, message: "You cannot deactivate your own account." });
+  }
+
+  const result = db.prepare("UPDATE users SET is_active = ? WHERE id = ?").run(isActive, userId);
+  if (result.changes === 0) {
+    return response.status(404).json({ success: false, message: "User not found." });
+  }
+
+  response.json({
+    success: true,
+    message: isActive ? "Account reactivated." : "Account deactivated.",
+    user: adminUserRow(userId),
   });
 });
 app.listen(PORT, () => {

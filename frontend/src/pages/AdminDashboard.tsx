@@ -1,69 +1,115 @@
+import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import DashboardLayout from "../components/DashboardLayout";
+import { apiFetch } from "../auth";
+
+type Stats = {
+  students: number;
+  lecturers: number;
+  admins: number;
+  inactive: number;
+  pantun: number;
+  awaiting: number;
+  reviewed: number;
+};
 
 function AdminDashboard() {
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState("");
+
+  useEffect(() => {
+    async function loadStats() {
+      try {
+        const response = await apiFetch("/api/admin/stats");
+        const data = await response.json();
+
+        if (!response.ok) {
+          setErrorMessage(data.message || "Unable to load the dashboard.");
+          return;
+        }
+
+        setStats(data.stats);
+      } catch {
+        setErrorMessage(
+          "Unable to connect to the backend. Make sure the backend server is running on port 5000.",
+        );
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadStats();
+  }, []);
+
+  const userCards = [
+    { label: "Students", value: stats?.students, color: "text-slate-900" },
+    { label: "Lecturers", value: stats?.lecturers, color: "text-violet-700" },
+    { label: "Administrators", value: stats?.admins, color: "text-slate-900" },
+    { label: "Deactivated", value: stats?.inactive, color: "text-red-600" },
+  ];
+
+  const pantunCards = [
+    { label: "Total pantun", value: stats?.pantun, color: "text-slate-900" },
+    { label: "Awaiting review", value: stats?.awaiting, color: "text-amber-600" },
+    { label: "Reviewed", value: stats?.reviewed, color: "text-emerald-600" },
+  ];
+
   return (
     <DashboardLayout
       role="Administrator"
-      name="PantunLingo Admin"
-      title="System Overview"
-      description="Manage users, monitor system activity and maintain PantunLingo records."
+      name="Administrator"
+      title="Dashboard"
+      description="Overview of accounts and pantun activity in PantunLingo."
       activeMenu="Dashboard"
     >
-      <section className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
-        {[
-          ["Total Users", "128", "Registered accounts"],
-          ["Active Accounts", "121", "Accounts currently active"],
-          ["Lecturers", "8", "Teaching accounts"],
-          ["Recent Audit Logs", "24", "Recorded system actions"],
-        ].map(([label, value, description]) => (
-          <article key={label} className="rounded-2xl bg-white p-6 shadow-sm">
-            <p className="text-sm font-semibold text-slate-500">{label}</p>
-            <p className="mt-3 text-4xl font-bold text-violet-700">{value}</p>
-            <p className="mt-2 text-sm text-slate-500">{description}</p>
-          </article>
+      {errorMessage && (
+        <div className="mb-6 rounded-xl bg-red-50 p-4 text-sm font-semibold text-red-700">
+          {errorMessage}
+        </div>
+      )}
+
+      <h2 className="mb-3 text-lg font-bold text-slate-900">Accounts</h2>
+      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        {userCards.map((card) => (
+          <Link
+            key={card.label}
+            to="/admin/users"
+            className="rounded-2xl bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <p className="text-sm font-semibold text-slate-500">{card.label}</p>
+            <p className={`mt-2 text-3xl font-bold ${card.color}`}>
+              {isLoading ? "…" : card.value ?? 0}
+            </p>
+          </Link>
         ))}
-      </section>
+      </div>
 
-      <section className="mt-8 grid gap-6 lg:grid-cols-2">
-        <article className="rounded-2xl bg-white p-7 shadow-sm">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-violet-700">
-            User management
-          </p>
-          <h2 className="mt-3 text-2xl font-bold text-slate-900">
-            Create and manage accounts
-          </h2>
-          <p className="mt-3 leading-7 text-slate-600">
-            Add student and lecturer accounts, manage account status, and reset
-            passwords.
-          </p>
+      <h2 className="mb-3 mt-8 text-lg font-bold text-slate-900">Pantun</h2>
+      <div className="grid gap-4 sm:grid-cols-3">
+        {pantunCards.map((card) => (
+          <div key={card.label} className="rounded-2xl bg-white p-5 shadow-sm">
+            <p className="text-sm font-semibold text-slate-500">{card.label}</p>
+            <p className={`mt-2 text-3xl font-bold ${card.color}`}>
+              {isLoading ? "…" : card.value ?? 0}
+            </p>
+          </div>
+        ))}
+      </div>
 
-          <button
-            type="button"
-            className="mt-6 rounded-xl bg-violet-700 px-5 py-3 font-bold text-white hover:bg-violet-800"
-          >
-            Manage users
-          </button>
-        </article>
-
-        <article className="rounded-2xl bg-white p-7 shadow-sm">
-          <p className="text-sm font-bold uppercase tracking-[0.18em] text-violet-700">
-            Data protection
+      <section className="mt-8 flex flex-col gap-4 rounded-2xl bg-violet-800 p-6 text-white sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-lg font-bold">Manage user accounts</p>
+          <p className="mt-1 text-sm text-violet-100">
+            Add students and lecturers, reset passwords or deactivate accounts.
           </p>
-          <h2 className="mt-3 text-2xl font-bold text-slate-900">
-            System backup
-          </h2>
-          <p className="mt-3 leading-7 text-slate-600">
-            Download a secure copy of the system data before major changes or
-            scheduled maintenance.
-          </p>
-
-          <button
-            type="button"
-            className="mt-6 rounded-xl border border-violet-700 px-5 py-3 font-bold text-violet-700 hover:bg-violet-50"
-          >
-            Create backup
-          </button>
-        </article>
+        </div>
+        <Link
+          to="/admin/users"
+          className="w-fit rounded-xl bg-white px-5 py-3 font-bold text-violet-800 transition hover:bg-violet-50"
+        >
+          Open Users
+        </Link>
       </section>
     </DashboardLayout>
   );

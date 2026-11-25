@@ -22,19 +22,19 @@ const studentMenu: MenuItem[] = [
   { label: "Dashboard", to: "/student" },
   { label: "Write Pantun", to: "/student/write-pantun" },
   { label: "My Drafts", to: "/student/drafts" },
-{ label: "Submissions", to: "/student/submissions" },
+  { label: "Submissions", to: "/student/submissions" },
 ];
 
 const lecturerMenu: MenuItem[] = [
   { label: "Dashboard", to: "/lecturer" },
   { label: "Activities" },
-{ label: "Review Submissions", to: "/lecturer/review" },
+  { label: "Review Submissions", to: "/lecturer/review" },
   { label: "Students" },
 ];
 
 const adminMenu: MenuItem[] = [
   { label: "Dashboard", to: "/admin" },
-  { label: "Users" },
+  { label: "Users", to: "/admin/users" },
   { label: "Audit Logs" },
   { label: "Backups" },
 ];
@@ -53,8 +53,7 @@ function DashboardLayout({
 
   function handleLogout() {
     setShowLogoutConfirmation(false);
-clearSession();
-    // Later, remove the real login token/session here.
+    clearSession();
     navigate("/", { replace: true });
   }
 
@@ -102,7 +101,11 @@ clearSession();
                 <NavLink
                   key={item.label}
                   to={item.to}
-                  end={item.to === "/student" || item.to === "/lecturer" || item.to === "/admin"}
+                  end={
+                    item.to === "/student" ||
+                    item.to === "/lecturer" ||
+                    item.to === "/admin"
+                  }
                   className={({ isActive }) =>
                     `block w-full rounded-xl px-4 py-3 text-left text-sm font-semibold transition ${
                       isActive || item.label === activeMenu
@@ -120,7 +123,7 @@ clearSession();
 
         {/* Always stays at the bottom of the fixed sidebar */}
         <div className="mt-6 shrink-0 rounded-2xl border border-white/15 bg-white/10 p-4">
-          <p className="font-semibold">{name}</p>
+          <p className="font-semibold">{displayName}</p>
           <p className="mt-1 text-sm text-violet-200">{role}</p>
 
           <button
@@ -171,7 +174,7 @@ clearSession();
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
               Signed in as
             </p>
-            <p className="mt-1 font-bold text-slate-900">{name}</p>
+            <p className="mt-1 font-bold text-slate-900">{displayName}</p>
           </div>
         </header>
 

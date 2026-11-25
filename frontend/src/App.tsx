@@ -12,7 +12,7 @@ import LecturerDashboard from "./pages/LecturerDashboard";
 import LecturerReviewSubmissions from "./pages/LecturerReviewSubmissions";
 
 import AdminDashboard from "./pages/AdminDashboard";
-
+import AdminUsers from "./pages/AdminUsers";
 function App() {
   return (
     <Routes>
@@ -36,6 +36,7 @@ function App() {
       {/* Admin only */}
       <Route element={<ProtectedRoute allow="admin" />}>
         <Route path="/admin" element={<AdminDashboard />} />
+        <Route path="/admin/users" element={<AdminUsers />} />
       </Route>
 
       {/* Unknown URL goes back to login */}
