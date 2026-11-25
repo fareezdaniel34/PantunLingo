@@ -21,7 +21,7 @@ const studentMenu: MenuItem[] = [
   { label: "Dashboard", to: "/student" },
   { label: "Write Pantun", to: "/student/write-pantun" },
   { label: "My Drafts", to: "/student/drafts" },
-  { label: "Submissions" },
+{ label: "Submissions", to: "/student/submissions" },
 ];
 
 const lecturerMenu: MenuItem[] = [

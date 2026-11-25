@@ -35,6 +35,8 @@ function StudentDrafts() {
   const [draftToDelete, setDraftToDelete] = useState<PantunDraft | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [actionMessage, setActionMessage] = useState("");
+  const [draftToSubmit, setDraftToSubmit] = useState<PantunDraft | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     async function loadDrafts() {
@@ -65,6 +67,7 @@ function StudentDrafts() {
 
     loadDrafts();
   }, []);
+
   async function handleDeleteDraft() {
     if (!draftToDelete) {
       return;
@@ -78,12 +81,8 @@ function StudentDrafts() {
         `http://localhost:5000/api/drafts/${draftToDelete.id}`,
         {
           method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            studentId: 1,
-          }),
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studentId: 1 }),
         },
       );
 
@@ -108,12 +107,55 @@ function StudentDrafts() {
       setIsDeleting(false);
     }
   }
+
+  async function handleSubmitDraft() {
+    if (!draftToSubmit) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      setActionMessage("");
+
+      const response = await fetch(
+        `http://localhost:5000/api/drafts/${draftToSubmit.id}/submit`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ studentId: 1 }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setActionMessage(data.message || "Unable to submit this pantun.");
+        return;
+      }
+
+      setDrafts((currentDrafts) =>
+        currentDrafts.map((draft) =>
+          draft.id === draftToSubmit.id ? data.draft : draft,
+        ),
+      );
+
+      setActionMessage(data.message);
+      setDraftToSubmit(null);
+    } catch {
+      setActionMessage(
+        "Unable to connect to the backend. Make sure the backend server is running on port 5000.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  }
+
   return (
     <DashboardLayout
       role="Student"
       name="Nur Aina"
       title="My Drafts"
-      description="View pantun drafts that you have saved. You can continue editing them in the next update."
+      description="View, edit, delete or submit the pantun drafts you have saved."
       activeMenu="My Drafts"
     >
       <section className="rounded-2xl bg-white p-6 shadow-sm md:p-8">
@@ -135,11 +177,13 @@ function StudentDrafts() {
             + Write Pantun
           </Link>
         </div>
+
         {actionMessage && (
           <div className="mt-6 rounded-xl bg-violet-50 p-4 text-sm font-semibold text-violet-800">
             {actionMessage}
           </div>
         )}
+
         {isLoading && (
           <div className="py-14 text-center">
             <p className="font-semibold text-slate-600">Loading drafts...</p>
@@ -188,7 +232,13 @@ function StudentDrafts() {
                         {draft.rhyme_pattern}
                       </span>
 
-                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-bold capitalize text-slate-600">
+                      <span
+                        className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${
+                          draft.status === "submitted"
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-600"
+                        }`}
+                      >
                         {draft.status}
                       </span>
                     </div>
@@ -211,78 +261,148 @@ function StudentDrafts() {
                 </div>
 
                 <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActionMessage("");
-                      setDraftToDelete(draft);
-                    }}
-                    className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50"
-                  >
-                    Delete Draft
-                  </button>
+                  {draft.status === "submitted" ? (
+                    <span className="rounded-xl bg-emerald-50 px-4 py-2.5 text-center text-sm font-bold text-emerald-700">
+                      Submitted for review
+                    </span>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionMessage("");
+                          setDraftToDelete(draft);
+                        }}
+                        className="rounded-xl border border-red-200 px-4 py-2.5 text-sm font-bold text-red-600 transition hover:bg-red-50"
+                      >
+                        Delete Draft
+                      </button>
 
-                  <Link
-                    to={`/student/write-pantun?draftId=${draft.id}`}
-                    className="rounded-xl border border-violet-300 px-4 py-2.5 text-center text-sm font-bold text-violet-700 transition hover:bg-violet-50"
-                  >
-                    Continue Editing
-                  </Link>
+                      <Link
+                        to={`/student/write-pantun?draftId=${draft.id}`}
+                        className="rounded-xl border border-violet-300 px-4 py-2.5 text-center text-sm font-bold text-violet-700 transition hover:bg-violet-50"
+                      >
+                        Continue Editing
+                      </Link>
+
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActionMessage("");
+                          setDraftToSubmit(draft);
+                        }}
+                        className="rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-800"
+                      >
+                        Submit Pantun
+                      </button>
+                    </>
+                  )}
                 </div>
               </article>
             ))}
           </div>
         )}
       </section>
+
       {draftToDelete && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-5">
-    <section
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby="delete-draft-title"
-      className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl"
-    >
-      <p className="text-sm font-bold uppercase tracking-[0.18em] text-red-600">
-        Delete draft
-      </p>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-5">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="delete-draft-title"
+            className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl"
+          >
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-red-600">
+              Delete draft
+            </p>
 
-      <h2
-        id="delete-draft-title"
-        className="mt-3 text-2xl font-bold text-slate-900"
-      >
-        Delete this draft?
-      </h2>
+            <h2
+              id="delete-draft-title"
+              className="mt-3 text-2xl font-bold text-slate-900"
+            >
+              Delete this draft?
+            </h2>
 
-      <p className="mt-3 leading-7 text-slate-600">
-        You are about to permanently delete{" "}
-        <span className="font-bold text-slate-800">
-          "{draftToDelete.title}"
-        </span>
-        . This action cannot be undone.
-      </p>
+            <p className="mt-3 leading-7 text-slate-600">
+              You are about to permanently delete{" "}
+              <span className="font-bold text-slate-800">
+                "{draftToDelete.title}"
+              </span>
+              . This action cannot be undone.
+            </p>
 
-      <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
-        <button
-          type="button"
-          onClick={() => setDraftToDelete(null)}
-          disabled={isDeleting}
-          className="rounded-xl border border-slate-300 px-5 py-3 font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          Cancel
-        </button>
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDraftToDelete(null)}
+                disabled={isDeleting}
+                className="rounded-xl border border-slate-300 px-5 py-3 font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
 
-        <button
-          type="button"
-          onClick={handleDeleteDraft}
-          disabled={isDeleting}
-          className="rounded-xl bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {isDeleting ? "Deleting..." : "Yes, Delete Draft"}
-        </button>
-      </div>
-    </section>
-  </div>
-)}
+              <button
+                type="button"
+                onClick={handleDeleteDraft}
+                disabled={isDeleting}
+                className="rounded-xl bg-red-600 px-5 py-3 font-bold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isDeleting ? "Deleting..." : "Yes, Delete Draft"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {draftToSubmit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 p-5">
+          <section
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="submit-draft-title"
+            className="w-full max-w-md rounded-2xl bg-white p-7 shadow-2xl"
+          >
+            <p className="text-sm font-bold uppercase tracking-[0.18em] text-violet-700">
+              Submit pantun
+            </p>
+
+            <h2
+              id="submit-draft-title"
+              className="mt-3 text-2xl font-bold text-slate-900"
+            >
+              Submit for review?
+            </h2>
+
+            <p className="mt-3 leading-7 text-slate-600">
+              <span className="font-bold text-slate-800">
+                "{draftToSubmit.title}"
+              </span>{" "}
+              will be sent to your lecturer. After submitting, you can no
+              longer edit or delete it.
+            </p>
+
+            <div className="mt-7 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setDraftToSubmit(null)}
+                disabled={isSubmitting}
+                className="rounded-xl border border-slate-300 px-5 py-3 font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={handleSubmitDraft}
+                disabled={isSubmitting}
+                className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {isSubmitting ? "Submitting..." : "Yes, Submit"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </DashboardLayout>
   );
 }

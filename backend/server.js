@@ -25,6 +25,7 @@ app.use(
 app.use(express.json());
 
 // Create tables when the backend starts.
+// Create tables when the backend starts.
 db.exec(`
   CREATE TABLE IF NOT EXISTS users (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -50,6 +51,28 @@ db.exec(`
     FOREIGN KEY (student_id) REFERENCES users(id)
   );
 `);
+
+// Add review columns to existing databases (safe to run every time).
+const draftColumns = db
+  .prepare("PRAGMA table_info(pantun_drafts)")
+  .all()
+  .map((column) => column.name);
+
+if (!draftColumns.includes("feedback")) {
+  db.exec("ALTER TABLE pantun_drafts ADD COLUMN feedback TEXT");
+}
+
+if (!draftColumns.includes("score")) {
+  db.exec("ALTER TABLE pantun_drafts ADD COLUMN score INTEGER");
+}
+
+if (!draftColumns.includes("submitted_at")) {
+  db.exec("ALTER TABLE pantun_drafts ADD COLUMN submitted_at TEXT");
+}
+
+if (!draftColumns.includes("reviewed_at")) {
+  db.exec("ALTER TABLE pantun_drafts ADD COLUMN reviewed_at TEXT");
+}
 
 // Create a temporary demo student for development.
 const demoStudent = db
@@ -261,13 +284,19 @@ app.put("/api/drafts/:draftId", (request, response) => {
 
   const existingDraft = db
     .prepare(`
-      SELECT id
+      SELECT id, status
       FROM pantun_drafts
       WHERE id = ? AND student_id = ?
     `)
     .get(draftId, studentId);
 
   if (!existingDraft) {
+    if (existingDraft.status === "submitted") {
+  return response.status(400).json({
+    success: false,
+    message: "Submitted pantun can no longer be edited.",
+  });
+}
     return response.status(404).json({
       success: false,
       message: "Draft not found or does not belong to this student.",
@@ -327,13 +356,19 @@ app.delete("/api/drafts/:draftId", (request, response) => {
 
   const draft = db
     .prepare(`
-      SELECT id, title
+      SELECT id, title, status
       FROM pantun_drafts
       WHERE id = ? AND student_id = ?
     `)
     .get(draftId, studentId);
 
   if (!draft) {
+    if (draft.status === "submitted") {
+  return response.status(400).json({
+    success: false,
+    message: "Submitted pantun cannot be deleted.",
+  });
+}
     return response.status(404).json({
       success: false,
       message: "Draft not found or you do not have permission to delete it.",
@@ -349,6 +384,104 @@ app.delete("/api/drafts/:draftId", (request, response) => {
     success: true,
     message: `Draft "${draft.title}" deleted successfully.`,
     deletedDraftId: draftId,
+  });
+});
+// Submit a pantun draft for lecturer review.
+app.patch("/api/drafts/:draftId/submit", (request, response) => {
+  const draftId = Number(request.params.draftId);
+  const { studentId } = request.body;
+
+  if (!Number.isInteger(draftId) || draftId <= 0) {
+    return response.status(400).json({
+      success: false,
+      message: "Invalid draft ID.",
+    });
+  }
+
+  if (!studentId) {
+    return response.status(400).json({
+      success: false,
+      message: "Student ID is required.",
+    });
+  }
+
+  const draft = db
+    .prepare(`
+      SELECT id, title, status
+      FROM pantun_drafts
+      WHERE id = ? AND student_id = ?
+    `)
+    .get(draftId, studentId);
+
+  if (!draft) {
+    return response.status(404).json({
+      success: false,
+      message: "Draft not found or does not belong to this student.",
+    });
+  }
+
+  if (draft.status === "submitted") {
+    return response.status(400).json({
+      success: false,
+      message: "This pantun has already been submitted.",
+    });
+  }
+
+  db.prepare(`
+    UPDATE pantun_drafts
+    SET
+      status = 'submitted',
+      submitted_at = CURRENT_TIMESTAMP,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ? AND student_id = ?
+  `).run(draftId, studentId);
+
+  const submittedDraft = db
+    .prepare("SELECT * FROM pantun_drafts WHERE id = ?")
+    .get(draftId);
+
+  return response.json({
+    success: true,
+    message: `"${draft.title}" submitted for review.`,
+    draft: submittedDraft,
+  });
+});
+// Get submitted and reviewed pantun for one student.
+app.get("/api/submissions/student/:studentId", (request, response) => {
+  const studentId = Number(request.params.studentId);
+
+  if (!Number.isInteger(studentId) || studentId <= 0) {
+    return response.status(400).json({
+      success: false,
+      message: "Invalid student ID.",
+    });
+  }
+
+  const submissions = db
+    .prepare(`
+      SELECT
+        id,
+        title,
+        line_1,
+        line_2,
+        line_3,
+        line_4,
+        rhyme_pattern,
+        status,
+        feedback,
+        score,
+        submitted_at,
+        reviewed_at,
+        updated_at
+      FROM pantun_drafts
+      WHERE student_id = ? AND status IN ('submitted', 'reviewed')
+      ORDER BY COALESCE(submitted_at, updated_at) DESC, id DESC
+    `)
+    .all(studentId);
+
+  return response.json({
+    success: true,
+    submissions,
   });
 });
 app.listen(PORT, () => {

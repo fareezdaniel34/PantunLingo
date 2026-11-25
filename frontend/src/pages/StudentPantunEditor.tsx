@@ -18,7 +18,7 @@ function getLineEnding(line: string) {
 function StudentPantunEditor() {
   const [searchParams] = useSearchParams();
   const draftId = searchParams.get("draftId");
-
+const [isLocked, setIsLocked] = useState(false);
   const [title, setTitle] = useState("");
   const [lines, setLines] = useState(["", "", "", ""]);
   const [message, setMessage] = useState("");
@@ -109,6 +109,13 @@ function StudentPantunEditor() {
 
         setTitle(draft.title);
         setLines([draft.line_1, draft.line_2, draft.line_3, draft.line_4]);
+
+        if (draft.status === "submitted") {
+          setIsLocked(true);
+          setMessage(
+            "This pantun has been submitted and can no longer be edited.",
+          );
+        }
       } catch {
         setMessage(
           "Unable to connect to the backend. Make sure the backend server is running on port 5000.",
@@ -234,6 +241,7 @@ function StudentPantunEditor() {
 
             <input
               id="pantun-title"
+              disabled={isLocked}
               type="text"
               value={title}
               onChange={(event) => {
@@ -282,6 +290,7 @@ function StudentPantunEditor() {
                 <textarea
                   id={`pantun-line-${index}`}
                   value={line}
+                  disabled={isLocked}
                   onChange={(event) => updateLine(index, event.target.value)}
                   rows={2}
                   placeholder={`Write pantun line ${index + 1}...`}
@@ -301,6 +310,7 @@ function StudentPantunEditor() {
             <button
               type="button"
               onClick={handleClear}
+              disabled={isLocked}
               className="rounded-xl border border-slate-300 px-5 py-3 font-bold text-slate-700 transition hover:bg-slate-50"
             >
               Clear
@@ -309,7 +319,7 @@ function StudentPantunEditor() {
             <button
               type="button"
               onClick={handleSaveDraft}
-              disabled={isSaving || isLoadingDraft}
+disabled={isSaving || isLoadingDraft || isLocked}
               className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving
