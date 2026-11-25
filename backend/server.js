@@ -484,6 +484,115 @@ app.get("/api/submissions/student/:studentId", (request, response) => {
     submissions,
   });
 });
+// Lecturer: get all submitted and reviewed pantun.
+app.get("/api/lecturer/submissions", (request, response) => {
+  const submissions = db
+    .prepare(`
+      SELECT
+        p.id,
+        p.title,
+        p.line_1,
+        p.line_2,
+        p.line_3,
+        p.line_4,
+        p.rhyme_pattern,
+        p.status,
+        p.feedback,
+        p.score,
+        p.submitted_at,
+        p.reviewed_at,
+        p.updated_at,
+        u.full_name AS student_name,
+        u.email AS student_email
+      FROM pantun_drafts p
+      JOIN users u ON u.id = p.student_id
+      WHERE p.status IN ('submitted', 'reviewed')
+      ORDER BY
+        CASE p.status WHEN 'submitted' THEN 0 ELSE 1 END,
+        COALESCE(p.submitted_at, p.updated_at) DESC
+    `)
+    .all();
+
+  return response.json({
+    success: true,
+    submissions,
+  });
+});
+
+// Lecturer: give score and feedback.
+app.patch("/api/submissions/:draftId/review", (request, response) => {
+  const draftId = Number(request.params.draftId);
+  const { score, feedback } = request.body;
+  const numericScore = Number(score);
+
+  if (!Number.isInteger(draftId) || draftId <= 0) {
+    return response.status(400).json({
+      success: false,
+      message: "Invalid submission ID.",
+    });
+  }
+
+  if (
+    score === "" ||
+    score === null ||
+    score === undefined ||
+    !Number.isInteger(numericScore) ||
+    numericScore < 0 ||
+    numericScore > 100
+  ) {
+    return response.status(400).json({
+      success: false,
+      message: "Score must be a whole number between 0 and 100.",
+    });
+  }
+
+  if (!feedback?.trim()) {
+    return response.status(400).json({
+      success: false,
+      message: "Please write feedback for the student.",
+    });
+  }
+
+  const submission = db
+    .prepare("SELECT id, title, status FROM pantun_drafts WHERE id = ?")
+    .get(draftId);
+
+  if (!submission || submission.status === "draft") {
+    return response.status(404).json({
+      success: false,
+      message: "Submission not found.",
+    });
+  }
+
+  db.prepare(`
+    UPDATE pantun_drafts
+    SET
+      status = 'reviewed',
+      score = ?,
+      feedback = ?,
+      reviewed_at = CURRENT_TIMESTAMP,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(numericScore, feedback.trim(), draftId);
+
+  const reviewed = db
+    .prepare(`
+      SELECT
+        p.*,
+        u.full_name AS student_name,
+        u.email AS student_email
+      FROM pantun_drafts p
+      JOIN users u ON u.id = p.student_id
+      WHERE p.id = ?
+    `)
+    .get(draftId);
+
+  return response.json({
+    success: true,
+    message: `"${submission.title}" reviewed successfully.`,
+    submission: reviewed,
+  });
+});
 app.listen(PORT, () => {
   console.log(`PantunLingo backend running at http://localhost:${PORT}`);
   console.log(`Database file: ${databasePath}`);

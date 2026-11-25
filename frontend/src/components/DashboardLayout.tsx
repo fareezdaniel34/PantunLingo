@@ -27,7 +27,7 @@ const studentMenu: MenuItem[] = [
 const lecturerMenu: MenuItem[] = [
   { label: "Dashboard", to: "/lecturer" },
   { label: "Activities" },
-  { label: "Review Submissions" },
+{ label: "Review Submissions", to: "/lecturer/review" },
   { label: "Students" },
 ];
 

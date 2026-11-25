@@ -6,6 +6,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import StudentPantunEditor from "./pages/StudentPantunEditor";
 import StudentDrafts from "./pages/StudentDrafts";
 import StudentSubmissions from "./pages/StudentSubmissions";
+import LecturerReviewSubmissions from "./pages/LecturerReviewSubmissions";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
       <Route path="/lecturer" element={<LecturerDashboard />} />
       <Route path="/admin" element={<AdminDashboard />} />
       <Route path="/student/submissions" element={<StudentSubmissions />} />
+      <Route path="/lecturer/review" element={<LecturerReviewSubmissions />} />
     </Routes>
   );
 }
