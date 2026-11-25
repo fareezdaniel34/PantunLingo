@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { NavLink, useNavigate } from "react-router";
+import { clearSession, getUser } from "../auth";
 
 type UserRole = "Student" | "Lecturer" | "Administrator";
 
@@ -47,11 +48,12 @@ function DashboardLayout({
   children,
 }: DashboardLayoutProps) {
   const navigate = useNavigate();
+  const displayName = getUser()?.fullName ?? name;
   const [showLogoutConfirmation, setShowLogoutConfirmation] = useState(false);
 
   function handleLogout() {
     setShowLogoutConfirmation(false);
-
+clearSession();
     // Later, remove the real login token/session here.
     navigate("/", { replace: true });
   }

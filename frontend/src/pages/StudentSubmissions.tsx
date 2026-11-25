@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
 import DashboardLayout from "../components/DashboardLayout";
+import { apiFetch } from "../auth";
 
 type Submission = {
   id: number;
@@ -46,10 +47,7 @@ function StudentSubmissions() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const response = await fetch(
-          "http://localhost:5000/api/submissions/student/1",
-        );
-
+        const response = await apiFetch("/api/submissions/mine");
         const data = await response.json();
 
         if (!response.ok) {

@@ -1,17 +1,6 @@
-import { useState } from "react";
-import { useNavigate } from "react-router";
-
-type UserRole = "student" | "lecturer" | "admin";
-
-type DemoAccount = {
-  role: UserRole;
-};
-
-const demoAccounts: Record<string, DemoAccount> = {
-  "student@pantunlingo.com": { role: "student" },
-  "lecturer@pantunlingo.com": { role: "lecturer" },
-  "admin@pantunlingo.com": { role: "admin" },
-};
+import { useState, type FormEvent } from "react";
+import { Navigate, useNavigate } from "react-router";
+import { API_URL, getToken, getUser, homeFor, saveSession } from "../auth";
 
 function LoginPage() {
   const navigate = useNavigate();
@@ -19,35 +8,50 @@ function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [message, setMessage] = useState("");
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
-  function handleLogin(event: React.FormEvent<HTMLFormElement>) {
+  // Already logged in? Go straight to the right dashboard.
+  const currentUser = getUser();
+  if (currentUser && getToken()) {
+    return <Navigate to={homeFor(currentUser.role)} replace />;
+  }
+
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const account = demoAccounts[normalizedEmail];
-
-    if (!email || !password) {
+    if (!email.trim() || !password) {
       setMessage("Please enter your email and password.");
       return;
     }
 
-    if (!account) {
+    try {
+      setIsLoggingIn(true);
+      setMessage("");
+
+      const response = await fetch(`${API_URL}/api/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data.message || "Unable to log in.");
+        return;
+      }
+
+      saveSession(data.token, data.user);
+      navigate(homeFor(data.user.role), { replace: true });
+    } catch {
       setMessage(
-        "Demo account not found. Use student@pantunlingo.com, lecturer@pantunlingo.com or admin@pantunlingo.com.",
+        "Unable to connect to the backend. Make sure it is running on port 5000.",
       );
-      return;
-    }
-
-    if (account.role === "student") {
-      navigate("/student");
-    }
-
-    if (account.role === "lecturer") {
-      navigate("/lecturer");
-    }
-
-    if (account.role === "admin") {
-      navigate("/admin");
+    } finally {
+      setIsLoggingIn(false);
     }
   }
 
@@ -109,14 +113,18 @@ function LoginPage() {
                 htmlFor="email"
                 className="text-sm font-semibold text-slate-700"
               >
-                Email or Student ID
+                Email
               </label>
 
               <input
                 id="email"
-                type="text"
+                type="email"
+                autoComplete="email"
                 value={email}
-                onChange={(event) => setEmail(event.target.value)}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setMessage("");
+                }}
                 placeholder="name@example.com"
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100"
               />
@@ -133,33 +141,39 @@ function LoginPage() {
               <input
                 id="password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
-                onChange={(event) => setPassword(event.target.value)}
+                onChange={(event) => {
+                  setPassword(event.target.value);
+                  setMessage("");
+                }}
                 placeholder="Enter your password"
                 className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-4 py-4 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100"
               />
             </div>
 
             {message && (
-              <p className="mt-5 rounded-xl bg-violet-50 p-4 text-sm font-medium text-violet-800">
+              <p className="mt-5 rounded-xl bg-red-50 p-4 text-sm font-medium text-red-700">
                 {message}
               </p>
             )}
 
             <button
               type="submit"
-              className="mt-7 w-full rounded-xl bg-violet-700 px-5 py-4 font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-800"
+              disabled={isLoggingIn}
+              className="mt-7 w-full rounded-xl bg-violet-700 px-5 py-4 font-bold text-white shadow-lg shadow-violet-200 transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Log In
+              {isLoggingIn ? "Logging in..." : "Log In"}
             </button>
           </form>
 
           <div className="mt-10 rounded-xl bg-slate-50 p-4 text-xs leading-6 text-slate-600">
-            <p className="font-bold text-slate-700">Demo accounts</p>
-            <p>Student: student@pantunlingo.com</p>
-            <p>Lecturer: lecturer@pantunlingo.com</p>
-            <p>Administrator: admin@pantunlingo.com</p>
-            <p>Password: any value for now</p>
+            <p className="font-bold text-slate-700">
+              Demo accounts (development only)
+            </p>
+            <p>Student: student@pantunlingo.com / student123</p>
+            <p>Lecturer: lecturer@pantunlingo.com / lecturer123</p>
+            <p>Administrator: admin@pantunlingo.com / admin123</p>
           </div>
         </div>
       </section>

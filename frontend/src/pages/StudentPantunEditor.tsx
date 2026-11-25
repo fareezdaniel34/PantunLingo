@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router";
 import DashboardLayout from "../components/DashboardLayout";
+import { apiFetch } from "../auth";
 
 function getLineEnding(line: string) {
   const cleanText = line
@@ -18,12 +19,13 @@ function getLineEnding(line: string) {
 function StudentPantunEditor() {
   const [searchParams] = useSearchParams();
   const draftId = searchParams.get("draftId");
-const [isLocked, setIsLocked] = useState(false);
+
   const [title, setTitle] = useState("");
   const [lines, setLines] = useState(["", "", "", ""]);
   const [message, setMessage] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoadingDraft, setIsLoadingDraft] = useState(Boolean(draftId));
+  const [isLocked, setIsLocked] = useState(false);
 
   const endings = lines.map(getLineEnding);
 
@@ -88,10 +90,7 @@ const [isLocked, setIsLocked] = useState(false);
         setIsLoadingDraft(true);
         setMessage("");
 
-        const response = await fetch(
-          `http://localhost:5000/api/drafts/${draftId}`,
-        );
-
+        const response = await apiFetch(`/api/drafts/${draftId}`);
         const data = await response.json();
 
         if (!response.ok) {
@@ -101,16 +100,10 @@ const [isLocked, setIsLocked] = useState(false);
 
         const draft = data.draft;
 
-        // Temporary demo ownership check. Replace this with real login later.
-        if (draft.student_id !== 1) {
-          setMessage("You do not have permission to edit this draft.");
-          return;
-        }
-
         setTitle(draft.title);
         setLines([draft.line_1, draft.line_2, draft.line_3, draft.line_4]);
 
-        if (draft.status === "submitted") {
+        if (draft.status !== "draft") {
           setIsLocked(true);
           setMessage(
             "This pantun has been submitted and can no longer be edited.",
@@ -153,17 +146,11 @@ const [isLocked, setIsLocked] = useState(false);
       setIsSaving(true);
       setMessage("");
 
-      const response = await fetch(
-        isEditing
-          ? `http://localhost:5000/api/drafts/${draftId}`
-          : "http://localhost:5000/api/drafts",
+      const response = await apiFetch(
+        isEditing ? `/api/drafts/${draftId}` : "/api/drafts",
         {
           method: isEditing ? "PUT" : "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
           body: JSON.stringify({
-            studentId: 1,
             title,
             line1: lines[0],
             line2: lines[1],
@@ -200,6 +187,9 @@ const [isLocked, setIsLocked] = useState(false);
     setLines(["", "", "", ""]);
     setMessage("");
   }
+
+  const inputClass =
+    "mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500";
 
   return (
     <DashboardLayout
@@ -241,15 +231,15 @@ const [isLocked, setIsLocked] = useState(false);
 
             <input
               id="pantun-title"
-              disabled={isLocked}
               type="text"
               value={title}
+              disabled={isLocked}
               onChange={(event) => {
                 setTitle(event.target.value);
                 setMessage("");
               }}
               placeholder="Example: Pantun Alam Sekitar"
-              className="mt-2 w-full rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100"
+              className={inputClass}
             />
           </div>
 
@@ -294,7 +284,7 @@ const [isLocked, setIsLocked] = useState(false);
                   onChange={(event) => updateLine(index, event.target.value)}
                   rows={2}
                   placeholder={`Write pantun line ${index + 1}...`}
-                  className="mt-2 w-full resize-none rounded-xl border border-slate-300 px-4 py-3 text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-violet-600 focus:ring-4 focus:ring-violet-100"
+                  className={`${inputClass} resize-none`}
                 />
               </div>
             ))}
@@ -311,7 +301,7 @@ const [isLocked, setIsLocked] = useState(false);
               type="button"
               onClick={handleClear}
               disabled={isLocked}
-              className="rounded-xl border border-slate-300 px-5 py-3 font-bold text-slate-700 transition hover:bg-slate-50"
+              className="rounded-xl border border-slate-300 px-5 py-3 font-bold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Clear
             </button>
@@ -319,7 +309,7 @@ const [isLocked, setIsLocked] = useState(false);
             <button
               type="button"
               onClick={handleSaveDraft}
-disabled={isSaving || isLoadingDraft || isLocked}
+              disabled={isSaving || isLoadingDraft || isLocked}
               className="rounded-xl bg-violet-700 px-5 py-3 font-bold text-white transition hover:bg-violet-800 disabled:cursor-not-allowed disabled:opacity-60"
             >
               {isSaving
@@ -363,6 +353,7 @@ disabled={isSaving || isLoadingDraft || isLocked}
                 </span>
               ))}
             </div>
+
             <p className="mt-4 text-sm font-semibold text-slate-700">
               Detected pattern:{" "}
               <span className="text-violet-700">

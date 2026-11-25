@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import DashboardLayout from "../components/DashboardLayout";
+import { apiFetch } from "../auth";
 
 type Submission = {
   id: number;
@@ -57,9 +58,7 @@ function LecturerReviewSubmissions() {
         setIsLoading(true);
         setErrorMessage("");
 
-        const response = await fetch(
-          "http://localhost:5000/api/lecturer/submissions",
-        );
+        const response = await apiFetch("/api/lecturer/submissions");
         const data = await response.json();
 
         if (!response.ok) {
@@ -114,11 +113,10 @@ function LecturerReviewSubmissions() {
       setIsSaving(true);
       setFormError("");
 
-      const response = await fetch(
-        `http://localhost:5000/api/submissions/${selected.id}/review`,
+      const response = await apiFetch(
+        `/api/submissions/${selected.id}/review`,
         {
           method: "PATCH",
-          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ score: numericScore, feedback }),
         },
       );
