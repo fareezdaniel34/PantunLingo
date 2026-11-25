@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import DashboardLayout from "../components/DashboardLayout";
 import { apiFetch } from "../auth";
 
@@ -19,6 +19,8 @@ type Submission = {
   updated_at: string;
 };
 
+type Filter = "all" | "submitted" | "reviewed";
+
 function formatDate(dateValue: string | null) {
   if (!dateValue) {
     return "-";
@@ -37,6 +39,13 @@ function formatDate(dateValue: string | null) {
 }
 
 function StudentSubmissions() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusParam = searchParams.get("status");
+  const filter: Filter =
+    statusParam === "submitted" || statusParam === "reviewed"
+      ? statusParam
+      : "all";
+
   const [submissions, setSubmissions] = useState<Submission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
@@ -73,6 +82,32 @@ function StudentSubmissions() {
   ).length;
   const awaitingCount = submissions.length - reviewedCount;
 
+  const visibleSubmissions =
+    filter === "all"
+      ? submissions
+      : submissions.filter((submission) => submission.status === filter);
+
+  function changeFilter(next: Filter) {
+    if (next === "all") {
+      setSearchParams({});
+    } else {
+      setSearchParams({ status: next });
+    }
+  }
+
+  const tabs: { key: Filter; label: string; count: number }[] = [
+    { key: "all", label: "All", count: submissions.length },
+    { key: "submitted", label: "Awaiting review", count: awaitingCount },
+    { key: "reviewed", label: "Reviewed", count: reviewedCount },
+  ];
+
+  const emptyText =
+    filter === "submitted"
+      ? "Nothing is waiting for review."
+      : filter === "reviewed"
+        ? "None of your pantun has been reviewed yet."
+        : "No submissions yet";
+
   return (
     <DashboardLayout
       role="Student"
@@ -82,30 +117,62 @@ function StudentSubmissions() {
       activeMenu="Submissions"
     >
       <div className="grid gap-4 sm:grid-cols-3">
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500">Total submitted</p>
-          <p className="mt-2 text-3xl font-bold text-slate-900">
-            {submissions.length}
-          </p>
-        </div>
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500">Awaiting review</p>
-          <p className="mt-2 text-3xl font-bold text-amber-600">
-            {awaitingCount}
-          </p>
-        </div>
-        <div className="rounded-2xl bg-white p-5 shadow-sm">
-          <p className="text-sm font-semibold text-slate-500">Reviewed</p>
-          <p className="mt-2 text-3xl font-bold text-emerald-600">
-            {reviewedCount}
-          </p>
-        </div>
+        {tabs.map((tab) => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => changeFilter(tab.key)}
+            className={`rounded-2xl p-5 text-left shadow-sm transition ${
+              filter === tab.key
+                ? "bg-violet-700 text-white"
+                : "bg-white hover:shadow-md"
+            }`}
+          >
+            <p
+              className={`text-sm font-semibold ${
+                filter === tab.key ? "text-violet-100" : "text-slate-500"
+              }`}
+            >
+              {tab.key === "all" ? "Total submitted" : tab.label}
+            </p>
+            <p
+              className={`mt-2 text-3xl font-bold ${
+                filter === tab.key
+                  ? "text-white"
+                  : tab.key === "submitted"
+                    ? "text-amber-600"
+                    : tab.key === "reviewed"
+                      ? "text-emerald-600"
+                      : "text-slate-900"
+              }`}
+            >
+              {tab.count}
+            </p>
+          </button>
+        ))}
       </div>
 
       <section className="mt-6 rounded-2xl bg-white p-6 shadow-sm md:p-8">
-        <h2 className="border-b border-slate-100 pb-6 text-2xl font-bold text-slate-900">
-          Submitted Pantun
-        </h2>
+        <div className="flex flex-col gap-4 border-b border-slate-100 pb-6 sm:flex-row sm:items-center sm:justify-between">
+          <h2 className="text-2xl font-bold text-slate-900">Submitted Pantun</h2>
+
+          <div className="flex flex-wrap gap-2">
+            {tabs.map((tab) => (
+              <button
+                key={tab.key}
+                type="button"
+                onClick={() => changeFilter(tab.key)}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${
+                  filter === tab.key
+                    ? "bg-violet-700 text-white"
+                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                }`}
+              >
+                {tab.label} ({tab.count})
+              </button>
+            ))}
+          </div>
+        </div>
 
         {isLoading && (
           <p className="py-14 text-center font-semibold text-slate-600">
@@ -119,27 +186,29 @@ function StudentSubmissions() {
           </div>
         )}
 
-        {!isLoading && !errorMessage && submissions.length === 0 && (
+        {!isLoading && !errorMessage && visibleSubmissions.length === 0 && (
           <div className="py-14 text-center">
-            <p className="text-xl font-bold text-slate-900">
-              No submissions yet
-            </p>
-            <p className="mt-2 text-slate-600">
-              Submit a finished pantun from My Drafts to send it to your
-              lecturer.
-            </p>
-            <Link
-              to="/student/drafts"
-              className="mt-6 inline-block rounded-xl bg-violet-700 px-5 py-3 font-bold text-white transition hover:bg-violet-800"
-            >
-              Go to My Drafts
-            </Link>
+            <p className="text-xl font-bold text-slate-900">{emptyText}</p>
+            {filter === "all" && (
+              <>
+                <p className="mt-2 text-slate-600">
+                  Submit a finished pantun from My Drafts to send it to your
+                  lecturer.
+                </p>
+                <Link
+                  to="/student/drafts"
+                  className="mt-6 inline-block rounded-xl bg-violet-700 px-5 py-3 font-bold text-white transition hover:bg-violet-800"
+                >
+                  Go to My Drafts
+                </Link>
+              </>
+            )}
           </div>
         )}
 
-        {!isLoading && !errorMessage && submissions.length > 0 && (
+        {!isLoading && !errorMessage && visibleSubmissions.length > 0 && (
           <div className="mt-6 space-y-5">
-            {submissions.map((submission) => {
+            {visibleSubmissions.map((submission) => {
               const isReviewed = submission.status === "reviewed";
 
               return (

@@ -471,7 +471,93 @@ app.patch("/api/submissions/:draftId/review", requireAuth("lecturer"), (request,
     submission: reviewed,
   });
 });
+// ---------- Dashboards ----------
+app.get("/api/student/stats", requireAuth("student"), (request, response) => {
+  const studentId = request.user.id;
 
+  const counts = db
+    .prepare(`
+      SELECT
+        SUM(CASE WHEN status = 'draft' THEN 1 ELSE 0 END) AS drafts,
+        SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) AS awaiting,
+        SUM(CASE WHEN status = 'reviewed' THEN 1 ELSE 0 END) AS reviewed,
+        ROUND(AVG(CASE WHEN status = 'reviewed' THEN score END), 1) AS averageScore
+      FROM pantun_drafts
+      WHERE student_id = ?
+    `)
+    .get(studentId);
+
+  const recent = db
+    .prepare(`
+      SELECT id, title, status, score, updated_at
+      FROM pantun_drafts
+      WHERE student_id = ?
+      ORDER BY updated_at DESC, id DESC
+      LIMIT 5
+    `)
+    .all(studentId);
+
+  const latestFeedback = db
+    .prepare(`
+      SELECT id, title, score, feedback, reviewed_at
+      FROM pantun_drafts
+      WHERE student_id = ? AND status = 'reviewed'
+      ORDER BY reviewed_at DESC
+      LIMIT 1
+    `)
+    .get(studentId);
+
+  response.json({
+    success: true,
+    stats: {
+      drafts: counts.drafts ?? 0,
+      awaiting: counts.awaiting ?? 0,
+      reviewed: counts.reviewed ?? 0,
+      averageScore: counts.averageScore,
+    },
+    recent,
+    latestFeedback: latestFeedback ?? null,
+  });
+});
+
+app.get("/api/lecturer/stats", requireAuth("lecturer"), (request, response) => {
+  const counts = db
+    .prepare(`
+      SELECT
+        SUM(CASE WHEN status = 'submitted' THEN 1 ELSE 0 END) AS awaiting,
+        SUM(CASE WHEN status = 'reviewed' THEN 1 ELSE 0 END) AS reviewed,
+        ROUND(AVG(CASE WHEN status = 'reviewed' THEN score END), 1) AS averageScore
+      FROM pantun_drafts
+    `)
+    .get();
+
+  const students = db
+    .prepare("SELECT COUNT(*) AS total FROM users WHERE role = 'student'")
+    .get();
+
+  const awaitingList = db
+    .prepare(`
+      SELECT p.id, p.title, p.rhyme_pattern, p.submitted_at, p.updated_at,
+             u.full_name AS student_name
+      FROM pantun_drafts p
+      JOIN users u ON u.id = p.student_id
+      WHERE p.status = 'submitted'
+      ORDER BY COALESCE(p.submitted_at, p.updated_at) ASC
+      LIMIT 5
+    `)
+    .all();
+
+  response.json({
+    success: true,
+    stats: {
+      awaiting: counts.awaiting ?? 0,
+      reviewed: counts.reviewed ?? 0,
+      students: students.total,
+      averageScore: counts.averageScore,
+    },
+    awaitingList,
+  });
+});
 app.listen(PORT, () => {
   console.log(`PantunLingo backend running at http://localhost:${PORT}`);
   console.log(`Database file: ${databasePath}`);

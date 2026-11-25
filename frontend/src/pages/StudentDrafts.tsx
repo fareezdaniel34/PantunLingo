@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import DashboardLayout from "../components/DashboardLayout";
 import { apiFetch } from "../auth";
 
@@ -38,6 +38,17 @@ function StudentDrafts() {
   const [actionMessage, setActionMessage] = useState("");
   const [draftToSubmit, setDraftToSubmit] = useState<PantunDraft | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [searchParams, setSearchParams] = useSearchParams();
+  const onlyDrafts = searchParams.get("status") === "draft";
+
+  const draftOnlyCount = drafts.filter(
+    (draft) => draft.status === "draft",
+  ).length;
+
+  const visibleDrafts = onlyDrafts
+    ? drafts.filter((draft) => draft.status === "draft")
+    : drafts;
 
   useEffect(() => {
     async function loadDrafts() {
@@ -139,6 +150,13 @@ function StudentDrafts() {
     }
   }
 
+  const tabClass = (active: boolean) =>
+    `rounded-full px-4 py-2 text-sm font-bold transition ${
+      active
+        ? "bg-violet-700 text-white"
+        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+    }`;
+
   return (
     <DashboardLayout
       role="Student"
@@ -154,8 +172,9 @@ function StudentDrafts() {
               Saved Pantun Drafts
             </h2>
             <p className="mt-2 text-slate-600">
-              {drafts.length} {drafts.length === 1 ? "draft" : "drafts"} saved
-              in your account.
+              {onlyDrafts
+                ? `${draftOnlyCount} ${draftOnlyCount === 1 ? "draft" : "drafts"} not submitted yet.`
+                : `${drafts.length} ${drafts.length === 1 ? "pantun" : "pantun"} saved in your account.`}
             </p>
           </div>
 
@@ -165,6 +184,23 @@ function StudentDrafts() {
           >
             + Write Pantun
           </Link>
+        </div>
+
+        <div className="mt-6 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setSearchParams({ status: "draft" })}
+            className={tabClass(onlyDrafts)}
+          >
+            Drafts only ({draftOnlyCount})
+          </button>
+          <button
+            type="button"
+            onClick={() => setSearchParams({})}
+            className={tabClass(!onlyDrafts)}
+          >
+            Show all ({drafts.length})
+          </button>
         </div>
 
         {actionMessage && (
@@ -185,27 +221,31 @@ function StudentDrafts() {
           </div>
         )}
 
-        {!isLoading && !errorMessage && drafts.length === 0 && (
+        {!isLoading && !errorMessage && visibleDrafts.length === 0 && (
           <div className="py-14 text-center">
             <p className="text-xl font-bold text-slate-900">
-              No saved drafts yet
+              {onlyDrafts && drafts.length > 0
+                ? "No unsubmitted drafts"
+                : "No saved drafts yet"}
             </p>
             <p className="mt-2 text-slate-600">
-              Start writing your first pantun and save it as a draft.
+              {onlyDrafts && drafts.length > 0
+                ? "All your pantun have been submitted. Write a new one or click Show all."
+                : "Start writing your first pantun and save it as a draft."}
             </p>
 
             <Link
               to="/student/write-pantun"
               className="mt-6 inline-block rounded-xl bg-violet-700 px-5 py-3 font-bold text-white transition hover:bg-violet-800"
             >
-              Write Your First Pantun
+              Write a Pantun
             </Link>
           </div>
         )}
 
-        {!isLoading && !errorMessage && drafts.length > 0 && (
+        {!isLoading && !errorMessage && visibleDrafts.length > 0 && (
           <div className="mt-6 space-y-5">
-            {drafts.map((draft) => {
+            {visibleDrafts.map((draft) => {
               const isLocked = draft.status !== "draft";
 
               return (
@@ -257,7 +297,7 @@ function StudentDrafts() {
                   <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
                     {isLocked ? (
                       <Link
-                        to="/student/submissions"
+                        to={`/student/submissions?status=${draft.status}`}
                         className={`rounded-xl px-4 py-2.5 text-center text-sm font-bold transition ${
                           draft.status === "reviewed"
                             ? "bg-emerald-50 text-emerald-700 hover:bg-emerald-100"
